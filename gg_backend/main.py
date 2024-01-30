@@ -5,6 +5,7 @@ from . import crud
 import shutil
 import os
 
+#Test
 app = FastAPI()
 
 # Angenommen, Ihre Fotos werden im Verzeichnis 'uploads' im Wurzelverzeichnis des Projekts gespeichert
