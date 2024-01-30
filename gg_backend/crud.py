@@ -1,13 +1,33 @@
 import psycopg2
 from .database import get_database_connection
+from passlib.context import CryptContext
 #Test
 
-# Create
-def create_benutzer(benutzername, email, passwort):
+# Erstellen Sie eine Instanz von CryptContext für die Passwort-Hash-Funktionen
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+def get_user_by_username(username):
     conn = get_database_connection()
     cursor = conn.cursor()
     try:
-        cursor.execute("INSERT INTO benutzer (benutzername, email, passwort) VALUES (%s, %s, %s)", (benutzername, email, passwort))
+        cursor.execute("SELECT * FROM benutzer WHERE benutzername = %s", (username,))
+        user = cursor.fetchone()
+        return user
+    except psycopg2.Error as e:
+        print(f"Fehler: {e}")
+        return None
+    finally:
+        cursor.close()
+        conn.close()
+
+# Create
+# Verwenden Sie pwd_context.hash, um das Passwort zu hashen
+def create_benutzer(benutzername, email, passwort, rolle='user'):
+    hashed_password = pwd_context.hash(passwort)
+    conn = get_database_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("INSERT INTO benutzer (benutzername, email, passwort, rolle) VALUES (%s, %s, %s, %s)", (benutzername, email, hashed_password, rolle))
         conn.commit()
     except psycopg2.Error as e:
         print(f"Fehler: {e}")
@@ -32,11 +52,13 @@ def get_benutzer(benutzer_id):
         conn.close()
 
 # Update
+# Verwenden Sie pwd_context.hash beim Aktualisieren des Passworts
 def update_benutzer(benutzer_id, benutzername, email, passwort):
+    hashed_password = pwd_context.hash(passwort)
     conn = get_database_connection()
     cursor = conn.cursor()
     try:
-        cursor.execute("UPDATE benutzer SET benutzername = %s, email = %s, passwort = %s WHERE benutzerid = %s", (benutzername, email, passwort, benutzer_id))
+        cursor.execute("UPDATE benutzer SET benutzername = %s, email = %s, passwort = %s WHERE benutzerid = %s", (benutzername, email, hashed_password, benutzer_id))
         conn.commit()
     except psycopg2.Error as e:
         print(f"Fehler: {e}")
@@ -58,6 +80,11 @@ def delete_benutzer(benutzer_id):
     finally:
         cursor.close()
         conn.close()
+
+#Passwort hashen
+# Verwenden Sie pwd_context.verify, um das Passwort zu überprüfen
+def verify_password(plain_password, hashed_password):
+    return pwd_context.verify(plain_password, hashed_password)
 
 # CRUD für Spielberichte
 
