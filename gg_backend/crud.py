@@ -1,5 +1,5 @@
 import psycopg2
-from .database import get_database_connection
+from database import get_database_connection
 from passlib.context import CryptContext
 #Test
 
@@ -11,14 +11,24 @@ def get_user_by_username(username):
     cursor = conn.cursor()
     try:
         cursor.execute("SELECT * FROM benutzer WHERE benutzername = %s", (username,))
-        user = cursor.fetchone()
-        return user
+        user_row = cursor.fetchone()
+        if user_row:
+            user = {
+                "benutzerid": user_row[0],
+                "benutzername": user_row[1],
+                "passwort": user_row[2],
+                "email": user_row[3],
+                "rolle": user_row[4]
+            }
+            return user
+        return None
     except psycopg2.Error as e:
         print(f"Fehler: {e}")
         return None
     finally:
         cursor.close()
         conn.close()
+
 
 # Create
 # Verwenden Sie pwd_context.hash, um das Passwort zu hashen

@@ -5,9 +5,10 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
 from typing import Optional
-from . import crud
+import crud
 import shutil
 import os
+#import bcrypt
 from pydantic import BaseModel
 
 # Konfiguration für JWT
@@ -37,8 +38,15 @@ class User(BaseModel):
 
 app = FastAPI()
 
-# Angenommen, Ihre Fotos werden im Verzeichnis 'uploads' im Wurzelverzeichnis des Projekts gespeichert
-app.mount("/Fotosupload", StaticFiles(directory="Fotosupload"), name="Fotosupload")
+# Pfad zum Verzeichnis 'Fotosupload'
+upload_folder = "Fotosupload"
+
+# Erstellen Sie das Verzeichnis, wenn es nicht existiert
+if not os.path.exists(upload_folder):
+    os.makedirs(upload_folder)
+
+# Mounten Sie nun das Verzeichnis
+app.mount("/Fotosupload", StaticFiles(directory=upload_folder), name="Fotosupload")
 
 # Hilfsfunktionen für Authentifizierung
 def verify_password(plain_password, hashed_password):
@@ -51,9 +59,10 @@ def authenticate_user(username: str, password: str):
     user = crud.get_user_by_username(username)
     if not user:
         return False
-    if not verify_password(password, user[2]):
+    if not verify_password(password, user["passwort"]):
         return False
     return user
+
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
@@ -66,7 +75,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     return encoded_jwt
 
 # Abhängigkeit, die den aktuellen Benutzer zurückgibt
-async def get_current_user(token: str = Depends(oauth2_scheme)):
+async def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -77,12 +86,14 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
         username: str = payload.get("sub")
         if username is None:
             raise credentials_exception
-        token_data = username
     except JWTError:
         raise credentials_exception
-    user = crud.get_user_by_username(token_data)
-    if user is None:
+    user_data = crud.get_user_by_username(username)
+    if user_data is None:
         raise credentials_exception
+
+    # Erstellen Sie ein Benutzerobjekt aus den Datenbankdaten
+    user = User(benutzername=user_data["benutzername"], rolle=user_data["rolle"]) 
     return user
 
 # Endpunkt, um einen neuen Token zu bekommen
@@ -97,8 +108,9 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
         )
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": user[1]}, expires_delta=access_token_expires
+        data={"sub": user["benutzername"]}, expires_delta=access_token_expires
     )
+
     return {"access_token": access_token, "token_type": "bearer"}
 
 
@@ -106,37 +118,44 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
 # Benutzer Endpunkte
 @app.post("/benutzer/")
 def create_benutzer(benutzername: str, email: str, passwort: str, current_user: User = Depends(get_current_user)):
-    if current_user[4] != 'admin':
+    if current_user.rolle != 'admin':
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Nicht autorisiert"
         )
-    hashed_password = get_password_hash(passwort)
-    crud.create_benutzer(benutzername, email, hashed_password)
+    crud.create_benutzer(benutzername, email, passwort)
     return {"message": "Benutzer erstellt"}
 
 
 @app.get("/benutzer/{benutzer_id}")
-def read_benutzer(benutzer_id: int):
+def read_benutzer(benutzer_id: int, current_user: User = Depends(get_current_user)):
+    if current_user.rolle != 'admin':
+        raise HTTPException(status_code=403, detail="Nicht autorisiert")
     benutzer = crud.get_benutzer(benutzer_id)
     if benutzer:
         return benutzer
     raise HTTPException(status_code=404, detail="Benutzer nicht gefunden")
 
 @app.put("/benutzer/{benutzer_id}")
-def update_benutzer(benutzer_id: int, benutzername: str, email: str, passwort: str):
+def update_benutzer(benutzer_id: int, benutzername: str, email: str, passwort: str, current_user: User = Depends(get_current_user)):
+    if current_user.rolle != 'admin':
+        raise HTTPException(status_code=403, detail="Nicht autorisiert")
     crud.update_benutzer(benutzer_id, benutzername, email, passwort)
     return {"message": "Benutzer aktualisiert"}
 
 @app.delete("/benutzer/{benutzer_id}")
-def delete_benutzer(benutzer_id: int):
+def delete_benutzer(benutzer_id: int, current_user: User = Depends(get_current_user)):
+    if current_user.rolle != 'admin':
+        raise HTTPException(status_code=403, detail="Nicht autorisiert")
     crud.delete_benutzer(benutzer_id)
     return {"message": "Benutzer gelöscht"}
 
 
 # Spielberichte Endpunkte
 @app.post("/spielberichte/")
-def create_spielbericht(titel: str, inhalt: str, spieldatum: str, erstelltvon: int):
+def create_spielbericht(titel: str, inhalt: str, spieldatum: str, erstelltvon: int, current_user: User = Depends(get_current_user)):
+    if current_user.rolle not in ["admin", "user"]:
+        raise HTTPException(status_code=403, detail="Nicht autorisiert")
     crud.create_spielbericht(titel, inhalt, spieldatum, erstelltvon)
     return {"message": "Spielbericht erstellt"}
 
@@ -148,18 +167,24 @@ def read_spielbericht(bericht_id: int):
     raise HTTPException(status_code=404, detail="Spielbericht nicht gefunden")
 
 @app.put("/spielberichte/{bericht_id}")
-def update_spielbericht(bericht_id: int, titel: str, inhalt: str, spieldatum: str):
+def update_spielbericht(bericht_id: int, titel: str, inhalt: str, spieldatum: str, current_user: User = Depends(get_current_user)):
+    if current_user.rolle not in ["admin", "user"]:
+        raise HTTPException(status_code=403, detail="Nicht autorisiert")
     crud.update_spielbericht(bericht_id, titel, inhalt, spieldatum)
     return {"message": "Spielbericht aktualisiert"}
 
 @app.delete("/spielberichte/{bericht_id}")
-def delete_spielbericht(bericht_id: int):
+def delete_spielbericht(bericht_id: int, current_user: User = Depends(get_current_user)):
+    if current_user.rolle not in ["admin", "user"]:
+        raise HTTPException(status_code=403, detail="Nicht autorisiert")
     crud.delete_spielbericht(bericht_id)
     return {"message": "Spielbericht gelöscht"}
 
 # Fotos Endpunkte
 @app.post("/fotos/")
-async def upload_foto(titel: str, beschreibung: str, hochgeladenvon: int, file: UploadFile = File(...)):
+def upload_foto(titel: str, beschreibung: str, hochgeladenvon: int, file: UploadFile = File(...), current_user: User = Depends(get_current_user)):
+    if current_user.rolle not in ["admin", "user"]:
+        raise HTTPException(status_code=403, detail="Nicht autorisiert")
     # Ordner erstellen, wenn er nicht existiert
     folder = 'Fotosupload'
     if not os.path.exists(folder):
@@ -185,12 +210,16 @@ def read_foto(foto_id: int):
     raise HTTPException(status_code=404, detail="Foto nicht gefunden")
 
 @app.put("/fotos/{foto_id}")
-def update_foto(foto_id: int, titel: str, beschreibung: str, bildurl: str):
+def update_foto(foto_id: int, titel: str, beschreibung: str, bildurl: str, current_user: User = Depends(get_current_user)):
+    if current_user.rolle not in ["admin", "user"]:
+        raise HTTPException(status_code=403, detail="Nicht autorisiert")
     crud.update_foto(foto_id, titel, beschreibung, bildurl)
     return {"message": "Foto aktualisiert"}
 
 @app.delete("/fotos/{foto_id}")
-def delete_foto(foto_id: int):
+def delete_foto(foto_id: int, current_user: User = Depends(get_current_user)):
+    if current_user.rolle not in ["admin", "user"]:
+        raise HTTPException(status_code=403, detail="Nicht autorisiert")
     # Zuerst den Eintrag aus der Datenbank holen, um den Dateinamen zu erhalten
     foto = crud.get_foto(foto_id)
     if not foto:
@@ -217,7 +246,9 @@ def delete_foto(foto_id: int):
 
 # Spiele Endpunkte
 @app.post("/spiele/")
-def create_spiel(gegner: str, spieldatum: str, ort: str, ergebnis: str):
+def create_spiel(gegner: str, spieldatum: str, ort: str, ergebnis: str, current_user: User = Depends(get_current_user)):
+    if current_user.rolle not in ["admin", "user"]:
+        raise HTTPException(status_code=403, detail="Nicht autorisiert")
     crud.create_spiel(gegner, spieldatum, ort, ergebnis)
     return {"message": "Spiel erstellt"}
 
@@ -229,13 +260,17 @@ def read_spiel(spiel_id: int):
     raise HTTPException(status_code=404, detail="Spiel nicht gefunden")
 
 @app.put("/spiele/{spiel_id}")
-def update_spiel(spiel_id: int, gegner: str, spieldatum: str, ort: str, ergebnis: str):
+def update_spiel(spiel_id: int, gegner: str, spieldatum: str, ort: str, ergebnis: str, current_user: User = Depends(get_current_user)):
+    if current_user.rolle not in ["admin", "user"]:
+        raise HTTPException(status_code=403, detail="Nicht autorisiert")
     crud.update_spiel(spiel_id, gegner, spieldatum, ort, ergebnis)
     return {"message": "Spiel aktualisiert"}
 
 @app.delete("/spiele/{spiel_id}")
-def delete_spiel(spiel_id: int):
+def delete_spiel(spiel_id: int, current_user: User = Depends(get_current_user)):
+    if current_user.rolle not in ["admin", "user"]:
+        raise HTTPException(status_code=403, detail="Nicht autorisiert")
     crud.delete_spiel(spiel_id)
     return {"message": "Spiel gelöscht"}
 
-# Weitere Endpunkte und Funktionalitäten können hier hinzugefügt werden
+
