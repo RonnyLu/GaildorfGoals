@@ -1,6 +1,7 @@
 from fastapi import FastAPI, File, UploadFile, HTTPException, Depends, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
@@ -37,6 +38,20 @@ class User(BaseModel):
 
 
 app = FastAPI()
+
+origins = [
+    "http://localhost:3000", #URL Frontend
+
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE"],  # Die erlaubten HTTP-Methoden anpassen
+    allow_headers=["*"],  # Hier können Sie die erlaubten Header anpassen
+)
+
 
 # Pfad zum Verzeichnis 'Fotosupload'
 upload_folder = "Fotosupload"
