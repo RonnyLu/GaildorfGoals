@@ -166,38 +166,63 @@ def delete_benutzer(benutzer_id: int, current_user: User = Depends(get_current_u
     return {"message": "Benutzer gelöscht"}
 
 
-# Spielberichte Endpunkte
-@app.post("/spielberichte/")
-def create_spielbericht(titel: str, inhalt: str, spieldatum: str, erstelltvon: int, current_user: User = Depends(get_current_user)):
+# Berichte Endpunkte
+
+
+@app.post("/berichte/")
+def create_bericht(titel: str, gegner: str, ergebnis: str, ort: str, inhalt: str, spieldatum: str, current_user: User = Depends(get_current_user)):
     if current_user.rolle not in ["admin", "user"]:
         raise HTTPException(status_code=403, detail="Nicht autorisiert")
-    crud.create_spielbericht(titel, inhalt, spieldatum, erstelltvon)
-    return {"message": "Spielbericht erstellt"}
+    
+    crud.create_bericht(titel, gegner, ergebnis, ort, inhalt, spieldatum, erstelltvon=current_user.benutzername)
+    
+    return {"message": "Bericht erstellt"}
 
-@app.get("/spielberichte/{bericht_id}")
-def read_spielbericht(bericht_id: int):
-    bericht = crud.get_spielbericht(bericht_id)
+@app.get("/berichte/")
+def get_all_berichte():
+    berichte = crud.get_all_berichte()  
+    return berichte
+
+@app.get("/berichte/{bericht_id}")
+def get_bericht(bericht_id: int):
+    bericht = crud.get_bericht(bericht_id)
     if bericht:
         return bericht
-    raise HTTPException(status_code=404, detail="Spielbericht nicht gefunden")
+    raise HTTPException(status_code=404, detail="Bericht nicht gefunden")
 
-@app.put("/spielberichte/{bericht_id}")
-def update_spielbericht(bericht_id: int, titel: str, inhalt: str, spieldatum: str, current_user: User = Depends(get_current_user)):
+@app.put("/berichte/{bericht_id}")
+def update_bericht(bericht_id: int, titel: str, gegner: str, ergebnis: str, ort: str, inhalt: str, spieldatum: str, current_user: User = Depends(get_current_user)):
     if current_user.rolle not in ["admin", "user"]:
         raise HTTPException(status_code=403, detail="Nicht autorisiert")
-    crud.update_spielbericht(bericht_id, titel, inhalt, spieldatum)
-    return {"message": "Spielbericht aktualisiert"}
+    
+    updated = crud.update_bericht(bericht_id, titel, gegner, ergebnis, ort, inhalt, spieldatum)
+    
+    if updated:
+        return {"message": "Bericht aktualisiert"}
+    else:
+        raise HTTPException(status_code=404, detail="Bericht nicht gefunden")
 
-@app.delete("/spielberichte/{bericht_id}")
-def delete_spielbericht(bericht_id: int, current_user: User = Depends(get_current_user)):
+@app.delete("/berichte/{bericht_id}")
+def delete_bericht(bericht_id: int, current_user: User = Depends(get_current_user)):
     if current_user.rolle not in ["admin", "user"]:
         raise HTTPException(status_code=403, detail="Nicht autorisiert")
-    crud.delete_spielbericht(bericht_id)
-    return {"message": "Spielbericht gelöscht"}
+    
+    deleted = crud.delete_bericht(bericht_id)
+    
+    if deleted:
+        return {"message": "Bericht gelöscht"}
+    else:
+        raise HTTPException(status_code=404, detail="Bericht nicht gefunden")
+
+
+
+
 
 # Fotos Endpunkte
+    
+
 @app.post("/fotos/")
-def upload_foto(titel: str, beschreibung: str, hochgeladenvon: int, file: UploadFile = File(...), current_user: User = Depends(get_current_user)):
+def upload_foto(titel: str, beschreibung: str, file: UploadFile = File(...), current_user: User = Depends(get_current_user)):
     if current_user.rolle not in ["admin", "user"]:
         raise HTTPException(status_code=403, detail="Nicht autorisiert")
     # Ordner erstellen, wenn er nicht existiert
@@ -214,8 +239,13 @@ def upload_foto(titel: str, beschreibung: str, hochgeladenvon: int, file: Upload
     bildurl = f"http://localhost:8000/Fotosupload/{file.filename}"
     
     # Eintrag in der Datenbank erstellen
-    crud.create_foto(titel, beschreibung, bildurl, hochgeladenvon)
+    crud.create_foto(titel, beschreibung, bildurl, hochgeladenvon=current_user.benutzername)
     return {"message": "Foto erstellt", "bildurl": bildurl}
+
+@app.get("/fotos/")
+def get_all_fotos():
+    fotos = crud.get_all_fotos()  
+    return fotos
 
 @app.get("/fotos/{foto_id}")
 def read_foto(foto_id: int):
@@ -257,7 +287,34 @@ def delete_foto(foto_id: int, current_user: User = Depends(get_current_user)):
 
     return {"message": "Foto gelöscht"}
 
+# Spielberichte Endpunkte
+@app.post("/spielberichte/")
+def create_spielbericht(titel: str, inhalt: str, spieldatum: str, erstelltvon: int, current_user: User = Depends(get_current_user)):
+    if current_user.rolle not in ["admin", "user"]:
+        raise HTTPException(status_code=403, detail="Nicht autorisiert")
+    crud.create_spielbericht(titel, inhalt, spieldatum, erstelltvon)
+    return {"message": "Spielbericht erstellt"}
 
+@app.get("/spielberichte/{bericht_id}")
+def read_spielbericht(bericht_id: int):
+    bericht = crud.get_spielbericht(bericht_id)
+    if bericht:
+        return bericht
+    raise HTTPException(status_code=404, detail="Spielbericht nicht gefunden")
+
+@app.put("/spielberichte/{bericht_id}")
+def update_spielbericht(bericht_id: int, titel: str, inhalt: str, spieldatum: str, current_user: User = Depends(get_current_user)):
+    if current_user.rolle not in ["admin", "user"]:
+        raise HTTPException(status_code=403, detail="Nicht autorisiert")
+    crud.update_spielbericht(bericht_id, titel, inhalt, spieldatum)
+    return {"message": "Spielbericht aktualisiert"}
+
+@app.delete("/spielberichte/{bericht_id}")
+def delete_spielbericht(bericht_id: int, current_user: User = Depends(get_current_user)):
+    if current_user.rolle not in ["admin", "user"]:
+        raise HTTPException(status_code=403, detail="Nicht autorisiert")
+    crud.delete_spielbericht(bericht_id)
+    return {"message": "Spielbericht gelöscht"}
 
 # Spiele Endpunkte
 @app.post("/spiele/")
