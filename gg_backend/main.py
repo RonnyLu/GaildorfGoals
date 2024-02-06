@@ -41,7 +41,7 @@ app = FastAPI()
 
 origins = [
     "http://localhost:3000", #URL Frontend
-
+    "https://gg-frontend-ec2.vercel.app" #URL Fronted Vercel
 ]
 
 app.add_middleware(
