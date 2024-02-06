@@ -24,7 +24,7 @@ def upload_file_to_s3(file, bucket_name, object_name=None):
         object_name = file.filename
     try:
         s3_client.upload_fileobj(file.file, bucket_name, object_name)
-        return f"https://{bucket_name}.s3.amazonaws.com/{object_name}"
+        return f"https://{bucket_name}.s3.eu-north-1.amazonaws.com/{object_name}"
     except NoCredentialsError:
         raise Exception('Credentials not available')
 
@@ -276,7 +276,7 @@ def upload_foto(titel: str, beschreibung: str, file: UploadFile = File(...), cur
     object_name = f"{current_user.benutzername}/{file.filename}"
     try:
         s3_client.upload_fileobj(file.file, bucket_name, object_name)
-        bildurl = f"https://{bucket_name}.s3.amazonaws.com/{object_name}"
+        bildurl = f"https://{bucket_name}.s3.eu-north-1.amazonaws.com/{object_name}"
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Fehler beim Hochladen der Datei: {e}")
 
@@ -312,7 +312,7 @@ def delete_foto(foto_id: int, current_user: User = Depends(get_current_user)):
         raise HTTPException(status_code=404, detail="Foto nicht gefunden")
 
     bild_url = foto[3]
-    object_name = bild_url.split(f"https://{bucket_name}.s3.amazonaws.com/")[1]
+    object_name = bild_url.split(f"https://{bucket_name}.s3.eu-north-1.amazonaws.com/")[1]
     
     try:
         s3_client.delete_object(Bucket=bucket_name, Key=object_name)
