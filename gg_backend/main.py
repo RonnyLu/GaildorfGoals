@@ -40,8 +40,13 @@ class User(BaseModel):
 app = FastAPI()
 
 origins = [
-    "http://localhost:3000", #URL Frontend
-    "https://gg-frontend-ec2.vercel.app" #URL Fronted Vercel
+    "http://localhost:3000", 
+    "https://gg-frontend-ec2.vercel.app/",
+    "https://gg-frontend-ec2-ronnys-projects-a05c22e7.vercel.app/" 
+    "https://gg-frontend-ec2-git-master-ronnys-projects-a05c22e7.vercel.app/"
+    "https://gg-frontend-ec2.vercel.app",
+    "https://gg-frontend-ec2-ronnys-projects-a05c22e7.vercel.app" 
+    "https://gg-frontend-ec2-git-master-ronnys-projects-a05c22e7.vercel.app"
 ]
 
 app.add_middleware(
