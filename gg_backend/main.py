@@ -11,6 +11,29 @@ import shutil
 import os
 #import bcrypt
 from pydantic import BaseModel
+import boto3
+from botocore.exceptions import NoCredentialsError
+
+# Boto3 S3-Client initialisieren
+s3_client = boto3.client('s3')
+bucket_name = "fotogaleriegaildorfgoals"
+
+def upload_file_to_s3(file, bucket_name, object_name=None):
+    """Upload a file to an S3 bucket"""
+    if object_name is None:
+        object_name = file.filename
+    try:
+        s3_client.upload_fileobj(file.file, bucket_name, object_name)
+        return f"https://{bucket_name}.s3.amazonaws.com/{object_name}"
+    except NoCredentialsError:
+        raise Exception('Credentials not available')
+
+def delete_file_from_s3(file_name, bucket_name):
+    """Delete file from an S3 bucket"""
+    try:
+        s3_client.delete_object(Bucket=bucket_name, Key=file_name)
+    except NoCredentialsError:
+        raise Exception('Credentials not available')
 
 # Konfiguration für JWT
 SECRET_KEY = "Ihr_sehr_geheimer_Schlüssel"
@@ -55,14 +78,14 @@ app.add_middleware(
 
 
 # Pfad zum Verzeichnis 'Fotosupload'
-upload_folder = "Fotosupload"
+#upload_folder = "Fotosupload"
 
 # Erstellen Sie das Verzeichnis, wenn es nicht existiert
-if not os.path.exists(upload_folder):
-    os.makedirs(upload_folder)
+#if not os.path.exists(upload_folder):
+  #  os.makedirs(upload_folder)
 
 # Mounten Sie nun das Verzeichnis
-app.mount("/Fotosupload", StaticFiles(directory=upload_folder), name="Fotosupload")
+#app.mount("/Fotosupload", StaticFiles(directory=upload_folder), name="Fotosupload")
 
 # Hilfsfunktionen für Authentifizierung
 def verify_password(plain_password, hashed_password):
@@ -221,7 +244,7 @@ def delete_bericht(bericht_id: int, current_user: User = Depends(get_current_use
 
 # Fotos Endpunkte
     
-
+"""" ENDPUNKT VOR S3
 @app.post("/fotos/")
 def upload_foto(titel: str, beschreibung: str, file: UploadFile = File(...), current_user: User = Depends(get_current_user)):
     if current_user.rolle not in ["admin", "user"]:
@@ -240,6 +263,23 @@ def upload_foto(titel: str, beschreibung: str, file: UploadFile = File(...), cur
     bildurl = f"http://localhost:8000/Fotosupload/{file.filename}"
     
     # Eintrag in der Datenbank erstellen
+    crud.create_foto(titel, beschreibung, bildurl, hochgeladenvon=current_user.benutzername)
+    return {"message": "Foto erstellt", "bildurl": bildurl}
+
+    """
+
+@app.post("/fotos/")
+def upload_foto(titel: str, beschreibung: str, file: UploadFile = File(...), current_user: User = Depends(get_current_user)):
+    if current_user.rolle not in ["admin", "user"]:
+        raise HTTPException(status_code=403, detail="Nicht autorisiert")
+    
+    object_name = f"{current_user.benutzername}/{file.filename}"
+    try:
+        s3_client.upload_fileobj(file.file, bucket_name, object_name)
+        bildurl = f"https://{bucket_name}.s3.amazonaws.com/{object_name}"
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Fehler beim Hochladen der Datei: {e}")
+
     crud.create_foto(titel, beschreibung, bildurl, hochgeladenvon=current_user.benutzername)
     return {"message": "Foto erstellt", "bildurl": bildurl}
 
@@ -266,6 +306,28 @@ def update_foto(foto_id: int, titel: str, beschreibung: str, bildurl: str, curre
 def delete_foto(foto_id: int, current_user: User = Depends(get_current_user)):
     if current_user.rolle not in ["admin", "user"]:
         raise HTTPException(status_code=403, detail="Nicht autorisiert")
+
+    foto = crud.get_foto(foto_id)
+    if not foto:
+        raise HTTPException(status_code=404, detail="Foto nicht gefunden")
+
+    bild_url = foto[3]
+    object_name = bild_url.split(f"https://{bucket_name}.s3.amazonaws.com/")[1]
+    
+    try:
+        s3_client.delete_object(Bucket=bucket_name, Key=object_name)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Fehler beim Löschen der Datei: {e}")
+
+    crud.delete_foto(foto_id)
+    return {"message": "Foto gelöscht"}
+
+
+"""" ENDPUNKT VOR S3
+@app.delete("/fotos/{foto_id}")
+def delete_foto(foto_id: int, current_user: User = Depends(get_current_user)):
+    if current_user.rolle not in ["admin", "user"]:
+        raise HTTPException(status_code=403, detail="Nicht autorisiert")
     # Zuerst den Eintrag aus der Datenbank holen, um den Dateinamen zu erhalten
     foto = crud.get_foto(foto_id)
     if not foto:
@@ -287,6 +349,7 @@ def delete_foto(foto_id: int, current_user: User = Depends(get_current_user)):
     crud.delete_foto(foto_id)
 
     return {"message": "Foto gelöscht"}
+    """
 
 # Spielberichte Endpunkte
 @app.post("/spielberichte/")

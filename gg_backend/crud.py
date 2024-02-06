@@ -96,10 +96,6 @@ def delete_benutzer(benutzer_id):
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
 
-import psycopg2
-from database import get_database_connection
-from passlib.context import CryptContext
-#Test
 
 # Erstellen Sie eine Instanz von CryptContext für die Passwort-Hash-Funktionen
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -248,63 +244,6 @@ def delete_spielbericht(bericht_id):
     finally:
         cursor.close()
         conn.close()
-
-
-# CRUD für Fotos
-
-def create_foto(titel, beschreibung, bildurl, hochgeladenvon):
-    conn = get_database_connection()
-    cursor = conn.cursor()
-    try:
-        cursor.execute("INSERT INTO fotos (titel, beschreibung, bildurl, hochgeladenvon) VALUES (%s, %s, %s, %s)", (titel, beschreibung, bildurl, hochgeladenvon))
-        conn.commit()
-    except psycopg2.Error as e:
-        print(f"Fehler: {e}")
-        conn.rollback()
-    finally:
-        cursor.close()
-        conn.close()
-
-def get_foto(foto_id):
-    conn = get_database_connection()
-    cursor = conn.cursor()
-    try:
-        cursor.execute("SELECT * FROM fotos WHERE fotoid = %s", (foto_id,))
-        foto = cursor.fetchone()
-        return foto
-    except psycopg2.Error as e:
-        print(f"Fehler: {e}")
-        return None
-    finally:
-        cursor.close()
-        conn.close()
-
-def update_foto(foto_id, titel, beschreibung, bildurl):
-    conn = get_database_connection()
-    cursor = conn.cursor()
-    try:
-        cursor.execute("UPDATE fotos SET titel = %s, beschreibung = %s, bildurl = %s WHERE fotoid = %s", (titel, beschreibung, bildurl, foto_id))
-        conn.commit()
-    except psycopg2.Error as e:
-        print(f"Fehler: {e}")
-        conn.rollback()
-    finally:
-        cursor.close()
-        conn.close()
-
-def delete_foto(foto_id):
-    conn = get_database_connection()
-    cursor = conn.cursor()
-    try:
-        cursor.execute("DELETE FROM fotos WHERE fotoid = %s", (foto_id,))
-        conn.commit()
-    except psycopg2.Error as e:
-        print(f"Fehler: {e}")
-        conn.rollback()
-    finally:
-        cursor.close()
-        conn.close()
-
 
 
 # CRUD für Berichte
