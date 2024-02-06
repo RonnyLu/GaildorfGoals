@@ -40,21 +40,17 @@ class User(BaseModel):
 app = FastAPI()
 
 origins = [
-    "http://localhost:3000", 
-    "https://gg-frontend-ec2.vercel.app/",
-    "https://gg-frontend-ec2-ronnys-projects-a05c22e7.vercel.app/" 
-    "https://gg-frontend-ec2-git-master-ronnys-projects-a05c22e7.vercel.app/"
     "https://gg-frontend-ec2.vercel.app",
-    "https://gg-frontend-ec2-ronnys-projects-a05c22e7.vercel.app" 
-    "https://gg-frontend-ec2-git-master-ronnys-projects-a05c22e7.vercel.app"
+    "http://localhost:3000"
+    
 ]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE"],  # Die erlaubten HTTP-Methoden anpassen
-    allow_headers=["*"],  # Hier können Sie die erlaubten Header anpassen
+    allow_methods=["*"],  
+    allow_headers=["*"],  
 )
 
 
