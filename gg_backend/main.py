@@ -18,6 +18,7 @@ from botocore.exceptions import NoCredentialsError
 s3_client = boto3.client('s3')
 bucket_name = "fotogaleriegaildorfgoals"
 
+#Upload S3
 def upload_file_to_s3(file, bucket_name, object_name=None):
     """Upload a file to an S3 bucket"""
     if object_name is None:
@@ -28,6 +29,7 @@ def upload_file_to_s3(file, bucket_name, object_name=None):
     except NoCredentialsError:
         raise Exception('Credentials not available')
 
+#Löschen S3
 def delete_file_from_s3(file_name, bucket_name):
     """Delete file from an S3 bucket"""
     try:
@@ -76,7 +78,7 @@ app.add_middleware(
     allow_headers=["*"],  
 )
 
-
+#Fotospeicher lokal
 # Pfad zum Verzeichnis 'Fotosupload'
 #upload_folder = "Fotosupload"
 

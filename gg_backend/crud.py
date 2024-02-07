@@ -1,7 +1,7 @@
 import psycopg2
 from database import get_database_connection
 from passlib.context import CryptContext
-#Test
+
 
 # Erstellen Sie eine Instanz von CryptContext für die Passwort-Hash-Funktionen
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
